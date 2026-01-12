@@ -6,13 +6,14 @@ DATASET_PATH = ""
 LIBRARY_NAME = ""
 TOP_K = 10
 VERBOSE = True
+METRICS = ["hit_rate", "mrr", "recall", "ndcg"]
 
 library = Library().create_new_library(LIBRARY_NAME)
 library.add_files(DOCUMENTS_PATH)
 library.install_new_embedding(embedding_model_name="mini-lm-sbert", vector_db="chromadb")
 
-evaluator = Evaluator(library, DATASET_PATH)
-results = evaluator.evaluate(top_k=TOP_K, by_page=False, verbose=VERBOSE)
+evaluator = Evaluator.create("retrieval", library, DATASET_PATH, metrics=METRICS)
+results = evaluator.evaluate(top_k=TOP_K, by_page=True, verbose=VERBOSE)
 
 print(f"Hit Rate: {results.hit_rate:.3f}")
 print(f"MRR: {results.mrr:.3f}")
