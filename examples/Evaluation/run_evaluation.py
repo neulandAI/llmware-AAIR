@@ -1,9 +1,9 @@
 from llmware.library import Library
 from llmware.evaluation import Evaluator
 
-DOCUMENTS_PATH = "/Users/itorky/Desktop/svt docs/Transfer/llmware_test"
-DATASET_PATH = "/Users/itorky/Documents/llmware-AAIR/eval_dataset.json"
-LIBRARY_NAME = "eval_test_library"
+DOCUMENTS_PATH = ""
+DATASET_PATH = ""
+LIBRARY_NAME = ""
 TOP_K = 10
 VERBOSE = True
 
@@ -12,7 +12,7 @@ library.add_files(DOCUMENTS_PATH)
 library.install_new_embedding(embedding_model_name="mini-lm-sbert", vector_db="chromadb")
 
 evaluator = Evaluator(library, DATASET_PATH)
-results = evaluator.evaluate(top_k=TOP_K, by_page=True, verbose=VERBOSE)
+results = evaluator.evaluate(top_k=TOP_K, by_page=False, verbose=VERBOSE)
 
 print(f"Hit Rate: {results.hit_rate:.3f}")
 print(f"MRR: {results.mrr:.3f}")
