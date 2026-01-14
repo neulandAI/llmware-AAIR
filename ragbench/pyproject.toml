@@ -1,0 +1,17 @@
+[project]
+name = "ragbench"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Harshal Nandigramwar", email = "harshal@neuland.ai" }
+]
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+ragbench = "ragbench:main"
+
+[build-system]
+requires = ["uv_build>=0.9.24,<0.10.0"]
+build-backend = "uv_build"
