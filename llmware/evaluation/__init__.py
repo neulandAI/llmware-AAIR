@@ -14,10 +14,14 @@ from .metrics import (
     calculate_ndcg,
 )
 from .retrieval import RetrievalEvaluator, MetricNotFoundError, AVAILABLE_METRICS
+from .rag_evaluator import RAGEvaluator, normalize_answer
+from .answer_evaluator import AnswerEvaluator
 
 
 EVALUATOR_REGISTRY = {
     "retrieval": RetrievalEvaluator,
+    "rag": RAGEvaluator,
+    "answer": AnswerEvaluator,
 }
 
 
@@ -76,6 +80,8 @@ __all__ = [
     "EvaluationResult",
     "EvaluationMetrics",
     "RetrievalEvaluator",
+    "RAGEvaluator",
+    "AnswerEvaluator",
     "Evaluator",
     "EvaluatorNotFoundError",
     "MetricNotFoundError",
@@ -85,4 +91,5 @@ __all__ = [
     "calculate_reciprocal_rank",
     "calculate_recall",
     "calculate_ndcg",
+    "normalize_answer",
 ]
