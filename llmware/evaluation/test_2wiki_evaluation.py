@@ -75,7 +75,9 @@ def run_evaluation_for_strategy(
     questions: List[dict],
     embedding_model: Any,
     top_k: int,
-    max_tokens: int = 128,
+    max_tokens: int = 300,
+    fixed_overlap: int = 50,
+    sentence_max_tokens: int = 350,
     enable_qa: bool = False,
     llm_model: Any = None
 ) -> Dict[str, Any]:
@@ -88,7 +90,9 @@ def run_evaluation_for_strategy(
         questions: List of question dicts with 'question' and 'answer' keys
         embedding_model: Embedding model adapter
         top_k: Number of passages to retrieve
-        max_tokens: Maximum tokens per chunk for chunking strategies
+        max_tokens: Max tokens for fixed-size chunking (default: 300, matches Sonal's)
+        fixed_overlap: Token overlap for fixed-size chunking (default: 50)
+        sentence_max_tokens: Max tokens for sentence-based chunking (default: 350)
         enable_qa: Whether to run QA generation for Contain/LLM accuracy
         llm_model: LLM model for QA (required if enable_qa=True)
         
@@ -99,14 +103,14 @@ def run_evaluation_for_strategy(
     print(f"STRATEGY: {strategy_name.upper()}")
     print("="*60)
     
-    # Apply chunking strategy
-    print(f"\nApplying {strategy_name} chunking (max_tokens={max_tokens})...")
+    print(f"\nApplying {strategy_name} chunking (max_tokens={max_tokens}, overlap={fixed_overlap})...")
     chunk_config = ChunkingConfig(
-        fixed_max_tokens=max_tokens,
-        fixed_overlap_tokens=max_tokens // 6,  # ~20% overlap
+        fixed_max_tokens=max_tokens,           # 300 tokens for fixed-size
+        fixed_overlap_tokens=fixed_overlap,    # 50 token overlap
         sentences_per_chunk=4,
         sentence_overlap=1,
-        max_chunk_tokens=max_tokens,
+        max_chunk_tokens=sentence_max_tokens,  # 350 tokens for sentence-based
+        min_chunk_tokens=30,
         embedding_model_name=DEFAULT_EMBEDDING_MODEL
     )
     strategy = get_chunking_strategy(strategy_name, chunk_config)
@@ -131,7 +135,7 @@ def run_evaluation_for_strategy(
             llm_model=llm_model if enable_qa else None,
             working_dir=working_dir,
             retrieval_top_k=top_k,
-            spacy_model="en_core_web_sm"
+            spacy_model="en_core_web_trf"
         )
         rag = LinearRAG(config)
         
@@ -238,14 +242,17 @@ def main():
     # Parameters
     NUM_QUESTIONS = 100
     TOP_K = 3
-    MAX_TOKENS = 128
-    ENABLE_QA = True  # Set to True to compute Contain/LLM accuracy (slower)
+    MAX_TOKENS = 300           # Fixed-size chunking: 300 tokens
+    FIXED_OVERLAP = 50         # Fixed overlap: 50 tokens
+    SENTENCE_MAX_TOKENS = 350  # Sentence-based max: 350 tokens
+    ENABLE_QA = True
     
     print("=" * 80)
     print("2WikiMultiHopQA Evaluation with LinearRAG")
     print("Testing All Chunking Strategies")
     print("=" * 80)
-    print(f"\nSettings: questions={NUM_QUESTIONS}, top_k={TOP_K}, max_tokens={MAX_TOKENS}, qa={ENABLE_QA}")
+    print(f"\nSettings: questions={NUM_QUESTIONS}, top_k={TOP_K}, max_tokens={MAX_TOKENS}, "
+          f"overlap={FIXED_OVERLAP}, sentence_max={SENTENCE_MAX_TOKENS}, qa={ENABLE_QA}")
     
     # Load data
     print("\nLoading chunks...")
@@ -275,6 +282,8 @@ def main():
             embedding_model=embedding_model,
             top_k=TOP_K,
             max_tokens=MAX_TOKENS,
+            fixed_overlap=FIXED_OVERLAP,
+            sentence_max_tokens=SENTENCE_MAX_TOKENS,
             enable_qa=ENABLE_QA,
             llm_model=llm_model
         )
