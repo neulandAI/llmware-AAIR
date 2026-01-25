@@ -1,13 +1,19 @@
 [project]
 name = "ragbench"
 version = "0.1.0"
-description = "Add your description here"
+description = "RAG pipeline component ablation research framework"
 readme = "README.md"
 authors = [
     { name = "Harshal Nandigramwar", email = "harshal@neuland.ai" }
 ]
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "llmware",
+    "numpy",
+    "scikit-learn",
+    "tqdm",
+    "sentence-transformers",
+]
 
 [project.scripts]
 ragbench = "ragbench:main"

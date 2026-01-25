@@ -11,3 +11,6 @@ class DoclingParser(Parser):
         pass
 
         # implement the parsing logic here.
+
+    def parse_txt(self, sample: dict):
+        pass
