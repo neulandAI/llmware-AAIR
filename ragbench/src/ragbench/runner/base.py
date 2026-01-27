@@ -1,23 +1,30 @@
 from llmware.library import Library
-from typing import Dict, List
+from typing import Dict, List, Any, Optional
 from pathlib import Path
 
 from ..config import Config
 from ..evaluation import evaluate_retrieval
 from ..results import ExperimentResult, save_result
+from ..parser.base import Parser
+from ..chunker.base import Chunker
+from ..encoder.base import Encoder
+from ..retriever.base import Retriever
+from ..datasets.base import Dataset
+from ..reranker.base import Reranker
+from ..generator.base import Generator
 
 
 class Runner:
     def __init__(
         self,
         config: Config,
-        parser,
-        chunker,
-        encoder,
-        retriever,
-        dataset,
-        reranker=None,
-        generator=None,
+        parser: Parser,
+        chunker: Chunker,
+        encoder: Encoder,
+        retriever: Retriever,
+        dataset: Dataset,
+        reranker: Reranker,
+        generator: Generator,
     ):
         """
         Initialize runner with all components.
@@ -29,23 +36,23 @@ class Runner:
             encoder: Encoder instance
             retriever: Retriever instance
             dataset: Dataset instance
-            reranker: Optional reranker instance
-            generator: Optional generator instance
+            reranker: Reranker instance (use NoOpReranker if not needed)
+            generator: Generator instance (use NoOpGenerator if not needed)
         """
-        self.config = config
-        self.parser = parser
-        self.chunker = chunker
-        self.encoder = encoder
-        self.retriever = retriever
-        self.dataset = dataset
-        self.reranker = reranker
-        self.generator = generator
-        self.library = None
+        self.config: Config = config
+        self.parser: Parser = parser
+        self.chunker: Chunker = chunker
+        self.encoder: Encoder = encoder
+        self.retriever: Retriever = retriever
+        self.dataset: Dataset = dataset
+        self.reranker: Reranker = reranker
+        self.generator: Generator = generator
+        self.library: Optional[Library] = None
         
         # Create results directory
         Path(self.config.results_path).parent.mkdir(parents=True, exist_ok=True)
 
-    def prepare_llmware_lib(self, documents: List[Dict], encoder):
+    def prepare_llmware_lib(self, documents: List[Dict], encoder: Encoder) -> None:
         """
         Prepare llmware library with parsed and chunked documents.
         
@@ -92,21 +99,21 @@ class Runner:
                                f"You may need to use a model name that llmware recognizes, "
                                f"or implement custom embedding logic.")
 
-    def test(self) -> ExperimentResult:
+    def run(self) -> ExperimentResult:
         """
-        Run full pipeline test.
+        Run the full pipeline for one compbination of components.
         
         Returns:
             ExperimentResult with metrics
         """
         # Load dataset
         data = self.dataset.load()
-        queries = data["queries"]
-        corpus = data["corpus"]
-        ground_truth = data["ground_truth"]
+        queries: List[Dict] = data["queries"]
+        corpus: Dict[str, Dict] = data["corpus"]
+        ground_truth: Dict[str, set] = data["ground_truth"]
         
         # Step 1: Parse documents
-        parsed_docs = []
+        parsed_docs: List[Dict] = []
         for doc_id, doc_data in corpus.items():
             # Get text from corpus (assumes corpus already has text)
             # If file_path is provided and parser supports it, parse the file
@@ -137,49 +144,48 @@ class Runner:
             })
         
         # Step 2: Chunk documents
-        chunks = self.chunker.chunk(parsed_docs)
+        chunks: List[Dict] = self.chunker.chunk(parsed_docs)
         
         # Step 3: Prepare library and embed
         self.prepare_llmware_lib(chunks, self.encoder)
         
         # Step 4: Retrieve and evaluate for each query
-        all_metrics = []
+        all_metrics: List[Dict[str, float]] = []
         
         for query in queries:
             query_id = query.get("id", "")
             query_text = query.get("text", "")
             
             # Retrieve
-            retrieved = self.retriever.retrieve(query_text, self.library, top_k=self.config.top_k)
+            retrieved: List[Dict] = self.retriever.retrieve(query_text, self.library, top_k=self.config.top_k)
+            retrieved_doc_ids: List[str] = [r["doc_id"] for r in retrieved]
+            
+            # Rerank (always use reranker, even if it's NoOpReranker)
+            retrieved = self.reranker.rerank(query_text, retrieved)
             retrieved_doc_ids = [r["doc_id"] for r in retrieved]
             
-            # Rerank if reranker provided
-            if self.reranker:
-                retrieved = self.reranker.rerank(query_text, retrieved)
-                retrieved_doc_ids = [r["doc_id"] for r in retrieved]
-            
             # Get ground truth
-            relevant_doc_ids = ground_truth.get(query_id, set())
+            relevant_doc_ids: set = ground_truth.get(query_id, set())
             
             # Evaluate
-            metrics = evaluate_retrieval(retrieved_doc_ids, relevant_doc_ids)
+            metrics: Dict[str, float] = evaluate_retrieval(retrieved_doc_ids, relevant_doc_ids)
             all_metrics.append(metrics)
         
         # Aggregate metrics across queries
-        aggregated_metrics = {}
+        aggregated_metrics: Dict[str, float] = {}
         if all_metrics:
             for key in all_metrics[0].keys():
                 values = [m[key] for m in all_metrics]
                 aggregated_metrics[key] = sum(values) / len(values)
         
         # Create result
-        result_config = {
+        result_config: Dict[str, Any] = {
             "parser": self.parser.__class__.__name__,
             "chunker": self.chunker.__class__.__name__,
             "encoder": self.encoder.get_model_name(),
             "retriever": self.retriever.__class__.__name__,
-            "reranker": self.reranker.__class__.__name__ if self.reranker else None,
-            "generator": self.generator.__class__.__name__ if self.generator else None,
+            "reranker": self.reranker.__class__.__name__,
+            "generator": self.generator.__class__.__name__,
             "top_k": self.config.top_k,
         }
         

@@ -3,7 +3,7 @@ from typing import List, Dict
 from .base import Retriever
 
 
-class SemanticRetriever(Retriever):
+class NaiveRetriever(Retriever):
     """Semantic retriever using llmware Query.semantic_query."""
     
     def __init__(self, embedding_distance_threshold: float = 1.0):
